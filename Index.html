@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Digital Shade Guide Pro 2.1</title>
+  <style>
+    * { box-sizing: border-box; touch-action: manipulation; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #080c14; color: #f8fafc; margin: 0; padding: 12px; text-align: center; }
+    .device-card { background: #111827; padding: 16px; border-radius: 20px; border: 1px solid #1f2937; box-shadow: 0 12px 30px rgba(0,0,0,0.7); max-width: 460px; margin: 0 auto; }
+
+    .header-title { font-size: 15px; font-weight: 700; color: #38bdf8; letter-spacing: 1px; margin-bottom: 4px; text-transform: uppercase; }
+    .header-sub { font-size: 11px; color: #6b7280; margin-bottom: 12px; }
+
+    .viewport-container { position: relative; width: 100%; height: 320px; background: #000; border-radius: 14px; overflow: hidden; border: 2px solid #374151; }
+    video, canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; }
+
+    .tooth-target { position: absolute; top: 50%; left: 58%; transform: translate(-50%, -50%); width: 70px; height: 96px; border: 2px dashed #00ffcc; border-radius: 40%; box-shadow: 0 0 14px rgba(0,255,204,0.4); pointer-events: none; z-index: 10; overflow: hidden; transition: left 0.3s ease; }
+    .tooth-target.centered { left: 50%; }
+    .tooth-third { position: absolute; left: 0; right: 0; height: 33.33%; border-top: 1px dashed rgba(0,255,204,0.5); }
+    .tooth-third:first-child { border-top: none; }
+    .tooth-label { position: absolute; top: -18px; left: 50%; transform: translateX(-50%); font-size: 9px; color: #00ffcc; white-space: nowrap; letter-spacing: 0.5px; }
+
+    /* تم نقل Ref Card إلى الناحية اليسرى (left: 18%) */
+    .ref-target { position: absolute; top: 50%; left: 18%; transform: translate(-50%, -50%); width: 40px; height: 40px; border: 2px dashed #fbbf24; border-radius: 6px; box-shadow: 0 0 10px rgba(251,191,36,0.4); pointer-events: none; z-index: 10; transition: opacity 0.3s ease; }
+    .ref-target.hidden { opacity: 0; display: none; }
+    .ref-label { position: absolute; top: -18px; left: 50%; transform: translateX(-50%); font-size: 9px; color: #fbbf24; white-space: nowrap; letter-spacing: 0.5px; }
+
+    .cal-row { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 10px 0 4px 0; font-size: 12px; color: #9ca3af; flex-wrap: wrap; }
+    select { background: #1f2937; color: #f8fafc; border: 1px solid #374151; border-radius: 8px; padding: 6px 8px; font-size: 12px; }
+
+    .cam-row { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 0 0 4px 0; font-size: 12px; color: #9ca3af; }
+    .cam-row select { max-width: 260px; }
+
+    .btn-toggle { background: #374151; color: #f8fafc; border: 1px solid #4b5563; padding: 6px 12px; border-radius: 8px; font-size: 11px; cursor: pointer; transition: all 0.2s; }
+    .btn-toggle.active { background: #059669; border-color: #10b981; color: white; font-weight: bold; }
+
+    .controls-row { display: flex; gap: 10px; margin: 10px 0 10px 0; }
+    .btn { flex: 1; padding: 14px; border: none; border-radius: 12px; font-size: 14px; font-weight: bold; cursor: pointer; transition: all 0.2s; }
+    .btn-measure { background: #0284c7; color: white; box-shadow: 0 4px 14px (2,132,199,0.4); }
+    .btn-reset { background: #10b981; color: white; box-shadow: 0 4px 14px rgba(16,185,129,0.4); }
+    .btn-flash { flex: 0 0 64px; background: #1f2937; color: #6b7280; border: 1px solid #374151; }
+    .btn-flash.on { background: #fbbf24; color: #111827; box-shadow: 0 4px 14px rgba(251,191,36,0.5); }
+    .btn-flash:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .display-screen { background: #030712; border: 1px solid #1f2937; padding: 16px; border-radius: 12px; margin-top: 10px; }
+    .shade-main { font-size: 32px; font-weight: 900; color: #00ffcc; letter-spacing: 1px; text-shadow: 0 0 14px rgba(0,255,204,0.4); }
+    .classical-badge { font-size: 22px; color: #fbbf24; font-weight: 700; margin-left: 6px; }
+    .system-tag { font-size: 12px; color: #38bdf8; margin-top: 4px; text-transform: uppercase; font-weight: bold; }
+    .delta-val { font-size: 13px; color: #9ca3af; margin-top: 6px; }
+    .thirds-val { font-size: 11px; color: #9ca3af; margin-top: 8px; line-height: 1.6; background: #111827; padding: 8px; border-radius: 8px; border: 1px solid #1f2937; }
+    .warn { font-size: 11px; color: #f59e0b; margin-top: 6px; }
+    .uncalibrated-tag { font-size: 11px; color: #f59e0b; margin-top: 8px; font-weight: bold; border: 1px solid #f59e0b; border-radius: 6px; padding: 3px 8px; display: inline-block; }
+    .disclaimer { font-size: 10px; color: #4b5563; margin-top: 12px; line-height: 1.4; }
+  </style>
+</head>
+<body>
+
+  <div class="device-card">
+    <div class="header-title">ShadePixel Pro</div>
+    <div class="header-sub" id="headerSub">Dual-System VITA Matching Engine</div>
+
+    <div class="cam-row">
+      <label for="cameraSelect">Camera:</label>
+      <select id="cameraSelect" onchange="switchCamera(this.value)">
+        <option value="">Default (built-in)</option>
+      </select>
+    </div>
+
+    <div class="viewport-container">
+      <video id="webcam" autoplay playsinline muted></video>
+      <canvas id="photoCanvas" style="display:none;"></canvas>
+
+      <!-- تم تعديل مكان السن قليلاً ليتوازن بصرياً مع البطاقة على اليسار عند التفعيل -->
+      <div class="tooth-target centered" id="toothTarget">
+        <div class="tooth-label">TOOTH</div>
+        <div class="tooth-third"></div>
+        <div class="tooth-third"></div>
+        <div class="tooth-third"></div>
+      </div>
+
+      <!-- تم نقل عنصر واجهة Ref Card للجهة اليسرى -->
+      <div class="ref-target hidden" id="refTarget">
+        <div class="ref-label">REF CARD</div>
+      </div>
+    </div>
+
+    <div class="cal-row">
+      <button class="btn-toggle" id="modeToggleBtn" onclick="toggleRefCardMode()">Ref Card: OFF</button>
+      <span id="cardSelectGroup" style="display:none;">
+        <label for="cardType">Card:</label>
+        <select id="cardType">
+          <option value="gray">18% Gray (L*=50, a*=0, b*=0)</option>
+          <option value="white">White Balance (L*=92, a*=0, b*=0)</option>
+        </select>
+      </span>
+    </div>
+
+    <div class="controls-row">
+      <button class="btn btn-flash" id="flashBtn" onclick="toggleFlash()" disabled>⚡</button>
+      <button class="btn btn-measure" id="actionBtn" onclick="handleAction()">MEASURE SHADE</button>
+    </div>
+
+    <div class="display-screen">
+      <div class="shade-main" id="shadeResult">
+        <span id="masterShade">READY</span>
+        <span class="classical-badge" id="classicalShade"></span>
+      </div>
+      <div class="system-tag" id="systemTag">VITA 3D-Master & Classical Dual Mode</div>
+      <div class="delta-val" id="deltaResult">ΔE00 to nearest shade: --</div>
+      <div class="thirds-val" id="thirdsResult"></div>
+      <div id="uncalTag" class="uncalibrated-tag" style="display:none;">⚠ Uncalibrated reading — no reference card used</div>
+      <div class="warn" id="warnMsg"></div>
+    </div>
+
+    <div class="disclaimer">
+    - ShadePixel Pro v2.1 - Engineered by Moaaz Sameh -
+    </div>
+  </div>
+
+  <script>
+    const VITA_3D_MASTER = {
+      "0M1": { L: 85.5, a: -0.2, b: 7.2 },
+      "0M2": { L: 83.0, a: 0.3,  b: 9.5 },
+      "0M3": { L: 80.5, a: 0.8,  b: 12.0 },
+      "1M1": { L: 81.2, a: 0.1,  b: 11.2 },
+      "1M2": { L: 78.0, a: 0.9,  b: 13.8 },
+      "2L1.5":{L: 75.8, a: -0.4, b: 14.1 },
+      "2M1": { L: 75.5, a: 0.6,  b: 14.5 },
+      "2M2": { L: 73.0, a: 1.4,  b: 17.2 },
+      "2M3": { L: 70.2, a: 2.3,  b: 20.1 },
+      "2R1.5":{L: 75.2, a: 1.8,  b: 14.8 },
+      "3L1.5":{L: 71.5, a: -0.2, b: 16.5 },
+      "3M1": { L: 71.0, a: 0.8,  b: 17.0 },
+      "3M2": { L: 68.2, a: 1.9,  b: 20.2 },
+      "3M3": { L: 65.0, a: 2.9,  b: 23.5 },
+      "3R1.5":{L: 70.8, a: 2.5,  b: 17.8 },
+      "4M1": { L: 65.5, a: 1.1,  b: 19.2 },
+      "4M2": { L: 62.8, a: 2.2,  b: 22.8 },
+      "4M3": { L: 59.5, a: 3.4,  b: 26.1 },
+      "5M1": { L: 59.0, a: 1.5,  b: 21.0 },
+      "5M2": { L: 56.0, a: 2.8,  b: 25.0 }
+    };
+
+    const VITA_3D_TO_CLASSICAL = {
+      "0M1": "B1", "0M2": "B1", "0M3": "A1", "1M1": "B1", "1M2": "A1",
+      "2L1.5":"B2", "2M1": "A2", "2M2": "A2", "2M3": "A3", "2R1.5":"D2",
+      "3L1.5":"B3", "3M1": "A3", "3M2": "A3.5", "3M3": "B4", "3R1.5":"D3",
+      "4M1": "C3", "4M2": "A4", "4M3": "C4", "5M1": "C4", "5M2": "D4"
+    };
+
+    const REFERENCE_TARGETS = {
+      gray:  { L: 50.0, a: 0.0, b: 0.0, R: 119, G: 119, B: 119 },
+      white: { L: 92.0, a: 0.0, b: 0.0, R: 230, G: 230, B: 230 }
+    };
+
+    const THIRD_LABELS = ["Incisal", "Middle", "Cervical"];
+
+    const video = document.getElementById('webcam');
+    const canvas = document.getElementById('photoCanvas');
+    const ctx = canvas.getContext('2d');
+    const actionBtn = document.getElementById('actionBtn');
+
+    let isFrozen = false;
+    let cameraTrack = null;
+    let currentStream = null;
+    let torchSupported = false;
+    let flashOn = false;
+    let useRefCard = false;
+
+    async function startCamera(deviceId) {
+      if (currentStream) {
+        currentStream.getTracks().forEach(t => t.stop());
+      }
+
+      const videoConstraints = deviceId
+        ? { deviceId: { exact: deviceId }, width: { ideal: 1280 }, height: { ideal: 720 } }
+        : { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } };
+
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: videoConstraints, audio: false });
+        currentStream = stream;
+        video.srcObject = stream;
+        cameraTrack = stream.getVideoTracks()[0];
+        
+        await lockCameraHardwareSettings();
+        
+        flashOn = false;
+        await detectTorchSupport();
+        await populateCameraList();
+      } catch (err) {
+        document.getElementById('masterShade').innerText = "ERROR";
+        document.getElementById('classicalShade').innerText = "";
+        document.getElementById('deltaResult').innerText = "Camera access denied or unavailable";
+      }
+    }
+
+    async function lockCameraHardwareSettings() {
+      if (!cameraTrack || !cameraTrack.getCapabilities) return;
+      try {
+        const caps = cameraTrack.getCapabilities();
+        const constraints = { advanced: [] };
+
+        if (caps.whiteBalanceMode && caps.whiteBalanceMode.includes("continuous")) {
+          constraints.advanced.push({ whiteBalanceMode: "continuous" });
+        }
+        if (caps.exposureMode && caps.exposureMode.includes("continuous")) {
+          constraints.advanced.push({ exposureMode: "continuous" });
+        }
+        if (constraints.advanced.length > 0) {
+          await cameraTrack.applyConstraints(constraints);
+        }
+      } catch (e) {
+        console.warn("Hardware lock not supported on this device.");
+      }
+    }
+
+    async function populateCameraList() {
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const videoInputs = devices.filter(d => d.kind === "videoinput");
+        const select = document.getElementById('cameraSelect');
+        const currentValue = select.value;
+        select.innerHTML = '<option value="">Default (built-in)</option>';
+        videoInputs.forEach((d, i) => {
+          const opt = document.createElement('option');
+          opt.value = d.deviceId;
+          opt.innerText = d.label || ("Camera " + (i + 1));
+          select.appendChild(opt);
+        });
+        select.value = currentValue && [...select.options].some(o => o.value === currentValue) ? currentValue : "";
+      } catch (e) {}
+    }
+
+    function switchCamera(deviceId) {
+      startCamera(deviceId || null);
+    }
+
+    startCamera(null);
+
+    function toggleRefCardMode() {
+      if (isFrozen) resetLiveCamera();
+
+      useRefCard = !useRefCard;
+      const toggleBtn = document.getElementById('modeToggleBtn');
+      const refTarget = document.getElementById('refTarget');
+      const toothTarget = document.getElementById('toothTarget');
+      const cardSelectGroup = document.getElementById('cardSelectGroup');
+      const headerSub = document.getElementById('headerSub');
+
+      if (useRefCard) {
+        toggleBtn.innerText = "Ref Card: ON";
+        toggleBtn.classList.add('active');
+        refTarget.classList.remove('hidden');
+        toothTarget.classList.remove('centered'); // يتحرك السن لليمين قليلاً لترك مساحة للبطاقة في اليسار
+        toothTarget.style.left = "58%"; 
+        cardSelectGroup.style.display = "inline";
+        headerSub.innerText = "Ref Card Mode: Enabled (Calibrated Matrix)";
+      } else {
+        toggleBtn.innerText = "Ref Card: OFF";
+        toggleBtn.classList.remove('active');
+        refTarget.classList.add('hidden');
+        toothTarget.classList.add('centered'); // يعود السن للوسط تماماً عند إيقاف البطاقة
+        toothTarget.style.left = "";
+        cardSelectGroup.style.display = "none";
+        headerSub.innerText = "Dual-System VITA Matching Engine";
+      }
+    }
+
+    async function detectTorchSupport() {
+      const flashBtn = document.getElementById('flashBtn');
+      if (!cameraTrack || !cameraTrack.getCapabilities) {
+        flashBtn.disabled = true;
+        return;
+      }
+      try {
+        const caps = cameraTrack.getCapabilities();
+        torchSupported = !!caps.torch;
+        flashBtn.disabled = !torchSupported;
+        if (!torchSupported) {
+          document.getElementById('warnMsg').innerText = "Ensure constant, bright ambient lighting.";
+        }
+      } catch (e) {
+        flashBtn.disabled = true;
+      }
+    }
+
+    async function toggleFlash() {
+      if (!torchSupported || !cameraTrack) return;
+      const flashBtn = document.getElementById('flashBtn');
+      const next = !flashOn;
+      try {
+        await cameraTrack.applyConstraints({ advanced: [{ torch: next }] });
+        flashOn = next;
+        flashBtn.classList.toggle('on', flashOn);
+      } catch (e) {
+        document.getElementById('warnMsg').innerText = "Couldn't toggle flash.";
+      }
+    }
+
+    function handleAction() {
+      if (!isFrozen) {
+        captureAndAnalyze();
+      } else {
+        resetLiveCamera();
+      }
+    }
+
+    function resetLiveCamera() {
+      canvas.style.display = "none";
+      video.style.display = "block";
+      isFrozen = false;
+
+      actionBtn.innerText = "MEASURE SHADE";
+      actionBtn.className = "btn btn-measure";
+
+      document.getElementById('masterShade').innerText = "READY";
+      document.getElementById('classicalShade').innerText = "";
+      document.getElementById('deltaResult').innerText = "ΔE00 to nearest shade: --";
+      document.getElementById('thirdsResult').innerText = "";
+      document.getElementById('uncalTag').style.display = "none";
+      document.getElementById('warnMsg').innerText = torchSupported ? "" : "Ensure good external lighting.";
+    }
+
+    function captureAndAnalyze() {
+      if (video.readyState !== video.HAVE_ENOUGH_DATA) return;
+
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      video.style.display = "none";
+      canvas.style.display = "block";
+      isFrozen = true;
+
+      actionBtn.innerText = "RESET / LIVE CAMERA";
+      actionBtn.className = "btn btn-reset";
+
+      processAutoShade();
+    }
+
+    function rgbToLab(r, g, b) {
+      let r_ = r / 255, g_ = g / 255, b_ = b / 255;
+      r_ = (r_ > 0.04045) ? Math.pow((r_ + 0.055) / 1.055, 2.4) : r_ / 12.92;
+      g_ = (g_ > 0.04045) ? Math.pow((g_ + 0.055) / 1.055, 2.4) : g_ / 12.92;
+      b_ = (b_ > 0.04045) ? Math.pow((b_ + 0.055) / 1.055, 2.4) : b_ / 12.92;
+
+      let x = (r_ * 0.4124 + g_ * 0.3576 + b_ * 0.1805) * 100 / 95.047;
+      let y = (r_ * 0.2126 + g_ * 0.7152 + b_ * 0.0722) * 100 / 100.000;
+      let z = (r_ * 0.0193 + g_ * 0.1192 + b_ * 0.9505) * 100 / 108.883;
+
+      x = (x > 0.008856) ? Math.pow(x, 1/3) : (7.787 * x) + (16 / 116);
+      y = (y > 0.008856) ? Math.pow(y, 1/3) : (7.787 * y) + (16 / 116);
+      z = (z > 0.008856) ? Math.pow(z, 1/3) : (7.787 * z) + (16 / 116);
+
+      return [(116 * y) - 16, 500 * (x - y), 200 * (y - z)];
+    }
+
+    function deltaE00(lab1, lab2) {
+      const [L1, a1, b1] = lab1;
+      const [L2, a2, b2] = lab2;
+      const kL = 1, kC = 1, kH = 1;
+
+      const C1 = Math.sqrt(a1 * a1 + b1 * b1);
+      const C2 = Math.sqrt(a2 * a2 + b2 * b2);
+      const Cbar = (C1 + C2) / 2;
+
+      const G = 0.5 * (1 - Math.sqrt(Math.pow(Cbar, 7) / (Math.pow(Cbar, 7) + Math.pow(25, 7))));
+
+      const a1p = a1 * (1 + G);
+      const a2p = a2 * (1 + G);
+
+      const C1p = Math.sqrt(a1p * a1p + b1 * b1);
+      const C2p = Math.sqrt(a2p * a2p + b2 * b2);
+
+      const h1p = (Math.atan2(b1, a1p) * 180 / Math.PI + 360) % 360;
+      const h2p = (Math.atan2(b2, a2p) * 180 / Math.PI + 360) % 360;
+
+      const dLp = L2 - L1;
+      const dCp = C2p - C1p;
+
+      let dhp = 0;
+      if (C1p * C2p !== 0) {
+        dhp = h2p - h1p;
+        if (dhp > 180) dhp -= 360;
+        if (dhp < -180) dhp += 360;
+      }
+      const dHp = 2 * Math.sqrt(C1p * C2p) * Math.sin((dhp / 2) * Math.PI / 180);
+
+      const Lbarp = (L1 + L2) / 2;
+      const Cbarp = (C1p + C2p) / 2;
+
+      let hbarp;
+      if (C1p * C2p === 0) {
+        hbarp = h1p + h2p;
+      } else if (Math.abs(h1p - h2p) <= 180) {
+        hbarp = (h1p + h2p) / 2;
+      } else if (h1p + h2p < 360) {
+        hbarp = (h1p + h2p + 360) / 2;
+      } else {
+        hbarp = (h1p + h2p - 360) / 2;
+      }
+
+      const T = 1 - 0.17 * Math.cos((hbarp - 30) * Math.PI / 180)
+                  + 0.24 * Math.cos((2 * hbarp) * Math.PI / 180)
+                  + 0.32 * Math.cos((3 * hbarp + 6) * Math.PI / 180)
+                  - 0.20 * Math.cos((4 * hbarp - 63) * Math.PI / 180);
+
+      const dTheta = 30 * Math.exp(-Math.pow((hbarp - 275) / 25, 2));
+      const Rc = 2 * Math.sqrt(Math.pow(Cbarp, 7) / (Math.pow(Cbarp, 7) + Math.pow(25, 7)));
+      const Sl = 1 + (0.015 * Math.pow(Lbarp - 50, 2)) / Math.sqrt(20 + Math.pow(Lbarp - 50, 2));
+      const Sc = 1 + 0.045 * Cbarp;
+      const Sh = 1 + 0.015 * Cbarp * T;
+      const Rt = -Math.sin(2 * dTheta * Math.PI / 180) * Rc;
+
+      const term1 = dLp / (kL * Sl);
+      const term2 = dCp / (kC * Sc);
+      const term3 = dHp / (kH * Sh);
+
+      return Math.sqrt(term1 * term1 + term2 * term2 + term3 * term3 + Rt * term2 * term3);
+    }
+
+    function averageRegionColor(x, y, w, h) {
+      x = Math.max(0, Math.floor(x));
+      y = Math.max(0, Math.floor(y));
+      w = Math.max(1, Math.floor(w));
+      h = Math.max(1, Math.floor(h));
+
+      const data = ctx.getImageData(x, y, w, h).data;
+      const pixels = [];
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i], g = data[i+1], b = data[i+2];
+        const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+        pixels.push({ r, g, b, luminance });
+      }
+
+      pixels.sort((p1, p2) => p1.luminance - p2.luminance);
+
+      const lowCut = Math.floor(pixels.length * 0.10);
+      const highCut = Math.floor(pixels.length * 0.75);
+      const kept = pixels.slice(lowCut, highCut);
+      const usable = kept.length ? kept : pixels;
+
+      let rSum = 0, gSum = 0, bSum = 0;
+      for (const p of usable) {
+        rSum += p.r; gSum += p.g; bSum += p.b;
+      }
+      return {
+        r: rSum / usable.length,
+        g: gSum / usable.length,
+        b: bSum / usable.length
+      };
+    }
+
+    function findVita3DMasterShade(labColor) {
+      const [targetL, targetA, targetB] = labColor;
+
+      let candidateKeys = Object.keys(VITA_3D_MASTER).filter(key => {
+        return Math.abs(VITA_3D_MASTER[key].L - targetL) <= 5.5;
+      });
+
+      if (candidateKeys.length === 0) {
+        candidateKeys = Object.keys(VITA_3D_MASTER);
+      }
+
+      let closestShade = "UNKNOWN";
+      let minDelta = Infinity;
+
+      for (let key of candidateKeys) {
+        const t = VITA_3D_MASTER[key];
+        const d = deltaE00(labColor, [t.L, t.a, t.b]);
+        if (d < minDelta) {
+          minDelta = d;
+          closestShade = key;
+        }
+      }
+
+      const classicalEquivalent = VITA_3D_TO_CLASSICAL[closestShade] || "--";
+
+      return { 
+        shade: closestShade, 
+        classical: classicalEquivalent, 
+        delta: minDelta 
+      };
+    }
+
+    function processAutoShade() {
+      const w = canvas.width;
+      const h = canvas.height;
+
+      let calMatrix = { rFactor: 1.0, gFactor: 1.0, bFactor: 1.0 };
+
+      if (useRefCard) {
+        // تم تحديث إحداثيات أخذ عينة البطاقة لتقع في الناحية اليسرى (18%) بدلاً من اليمين
+        const refW = Math.floor(w * 0.05);
+        const refH = Math.floor(h * 0.10);
+        const refX = Math.floor(w * 0.18 - refW / 2);
+        const refY = Math.floor(h * 0.50 - refH / 2);
+        const refColor = averageRegionColor(refX, refY, refW, refH);
+
+        const cardType = document.getElementById('cardType').value;
+        const refTarget = REFERENCE_TARGETS[cardType];
+
+        calMatrix.rFactor = refTarget.R / (refColor.r || 1);
+        calMatrix.gFactor = refTarget.G / (refColor.g || 1);
+        calMatrix.bFactor = refTarget.B / (refColor.b || 1);
+      }
+
+      const toothW = Math.floor(w * 0.085);
+      const toothH = Math.floor(h * 0.135);
+      // تعديل مكان قياس السن ديناميكياً ليناسب الوضع الجديد (يمين قليلاً عند تفعيل البطاقة في اليسار)
+      const toothX = useRefCard ? Math.floor(w * 0.58 - toothW / 2) : Math.floor(w * 0.50 - toothW / 2);
+      const toothY = Math.floor(h * 0.50 - toothH / 2);
+      const thirdH = Math.floor(toothH / 3);
+
+      const thirdLabs = [];
+      for (let i = 0; i < 3; i++) {
+        let color = averageRegionColor(toothX, toothY + i * thirdH, toothW, thirdH);
+
+        color.r = Math.min(255, color.r * calMatrix.rFactor);
+        color.g = Math.min(255, color.g * calMatrix.gFactor);
+        color.b = Math.min(255, color.b * calMatrix.bFactor);
+
+        let lab = rgbToLab(color.r, color.g, color.b);
+        thirdLabs.push(lab);
+      }
+
+      const avgLab = [0, 1, 2].map(i =>
+        thirdLabs.reduce((sum, lab) => sum + lab[i], 0) / thirdLabs.length
+      );
+
+      const mainResult = findVita3DMasterShade(avgLab);
+
+      document.getElementById('masterShade').innerText = mainResult.shade;
+      document.getElementById('classicalShade').innerText = " (≈ " + mainResult.classical + ")";
+      document.getElementById('deltaResult').innerText = "ΔE00 to nearest shade: " + mainResult.delta.toFixed(2);
+
+      const thirdsText = thirdLabs.map((lab, i) => {
+        const res = findVita3DMasterShade(lab);
+        return THIRD_LABELS[i] + ": " + res.shade + " (≈" + res.classical + ")";
+      }).join("<br>");
+      document.getElementById('thirdsResult').innerHTML = thirdsText;
+
+      document.getElementById('uncalTag').style.display = useRefCard ? "none" : "inline-block";
+
+      const warnEl = document.getElementById('warnMsg');
+      if (mainResult.delta > 3.5) {
+        warnEl.innerText = "High ΔE00 (" + mainResult.delta.toFixed(1) + ") — check lighting, framing, or reference card placement.";
+      } else if (!torchSupported && !useRefCard) {
+        warnEl.innerText = "Ensure constant, bright ambient lighting.";
+      } else {
+        warnEl.innerText = "";
+      }
+    }
+  </script>
+</body>
+</html>
